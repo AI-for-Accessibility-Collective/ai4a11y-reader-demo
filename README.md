@@ -144,6 +144,12 @@ npm run vendor     # or TOOLKIT_DIR=/path/to/toolkit npm run vendor
 
 `vendor/PIN.txt` records the toolkit commit the tarballs came from.
 
+## About
+
+A project of the [AI for Accessibility Collective](https://github.com/AI-for-Accessibility-Collective),
+licensed under [Apache 2.0](LICENSE) like the toolkit itself. Contributions
+follow the [code of conduct](CODE_OF_CONDUCT.md).
+
 ## What to try next
 
 - Add a need: give the model `letterSpacing` in `server.js`'s `DIMENSIONS`,
