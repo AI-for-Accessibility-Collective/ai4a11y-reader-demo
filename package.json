@@ -1,0 +1,16 @@
+{
+  "name": "ai4a11y-reader-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A one-page reading app that adapts itself to the person — the smallest complete host of the AI for Accessibility Toolkit, written as a tutorial.",
+  "type": "module",
+  "engines": { "node": ">=20.12.0" },
+  "scripts": {
+    "start": "node server.js",
+    "vendor": "sh scripts/vendor.sh"
+  },
+  "dependencies": {
+    "@ai4a11y/toolkit": "file:vendor/ai4a11y-toolkit.tgz",
+    "@ai4a11y/tools": "file:vendor/ai4a11y-tools.tgz"
+  }
+}

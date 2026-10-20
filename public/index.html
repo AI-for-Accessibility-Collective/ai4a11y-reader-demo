@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reader</title>
+<style>
+  :root { --bg: #fdfcf8; --fg: #1d1d1b; --muted: #6b6b66; --line: #e4e2da; --accent: #2d5fa6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.5 Georgia, "Times New Roman", serif; }
+  header { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-family: system-ui, sans-serif; font-size: 15px; z-index: 2; }
+  header form { display: flex; gap: 8px; flex: 1 1 320px; }
+  header input[type=text] { flex: 1; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: inherit; }
+  header button { font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: inherit; cursor: pointer; }
+  header button[aria-pressed=true] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  header label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+  #profile { width: 100%; color: var(--muted); font-size: 13px; min-height: 1.2em; }
+  #reply { width: 100%; font-size: 15px; min-height: 1.2em; }
+  main { max-width: 42rem; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.9em; line-height: 1.2; margin: 0 0 0.3em; }
+  .byline { color: var(--muted); font-family: system-ui, sans-serif; font-size: 0.8em; margin-bottom: 1.6em; }
+  p { margin: 0 0 1em; }
+  @media (max-width: 600px) { header { font-size: 14px; } body { font-size: 17px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <form id="ask" aria-label="Tell the reader what you need">
+    <input id="text" type="text" autocomplete="off" placeholder='Tell me what you need — "bigger text", "I'm dyslexic", "read this"'>
+    <button id="mic" type="button" aria-pressed="false" title="Speak (hold the button or press once and talk)">🎤 Speak</button>
+    <button type="submit">Send</button>
+  </form>
+  <label><input id="tts" type="checkbox" checked> Speak replies</label>
+  <div id="reply" role="status" aria-live="polite"></div>
+  <div id="profile" aria-live="polite"></div>
+</header>
+
+<main id="article">
+  <h1>Why reading is work, and what a page can do about it</h1>
+  <p class="byline">A short essay for the reader demo</p>
+  <p>Reading looks effortless from the outside. A person sits with a page, their eyes move, and a few minutes later they know something they did not know before. Inside, it is a chain of small jobs: find the start of the line, hold the words in mind long enough to make a sentence, keep your place when you look away, decide whether the next paragraph is worth your attention. Every one of those jobs can be made harder or easier by the page itself.</p>
+  <p>Text that is a little too small forces the eyes to work for each word. Lines packed tightly together make it easy to re-read the line you just finished, or skip the one you meant to read next. A bright white background can be tiring for some people after a few minutes and painful for others. A typeface with letters that mirror each other, b and d, p and q, is a small obstacle for most readers and a constant one for a dyslexic reader.</p>
+  <p>None of these are faults in the person. They are choices the page made before the person arrived, usually for the average reader the designer had in mind. The same page, with those choices made differently, is simply easier to read. Larger text, more space between lines, a darker background, a font built for the purpose, or the text read aloud: each one is an ordinary adjustment, and the right one depends on who is reading.</p>
+  <p>The trouble is that a page does not know who is reading. A browser setting can enlarge every site at once, but not in the way each site needs. A person who knows exactly what helps them ends up making the same adjustments again and again, on every page, in every app, with a different control each time.</p>
+  <p>This demo tries the other arrangement. You tell the page, once, what you need, in your own words, by typing or by speaking. The page keeps a profile of your needs, not a pile of settings, and renders it into the adjustments this page can make. Come back tomorrow and it remembers. Say "bigger" and it gets bigger. Say "read this" and it reads. The page does the work of adapting, because that is where the work belongs.</p>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
