@@ -92,19 +92,24 @@ function showProfile(model, web) {
 // The server asks Gemini to turn the sentence into one JSON action using the
 // toolkit's need vocabulary (so the model says "textSize 1.4", never a CSS
 // value), validates it, and returns it. The browser never holds the key.
+//
+// The article text goes along too, so a question about it ("what is this
+// about?", "what does the last paragraph say?") is answered from the page —
+// for a person who can't see it, that is the page. The server fences it as
+// content, not instructions.
+const articleText = () => document.getElementById('article').innerText;
+
 async function understand(text) {
   const current = (await currentNeeds()).map((n) => ({ dimension: n.dimension, value: n.value }));
   const r = await fetch('/api/understand', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text, current }),
+    body: JSON.stringify({ text, current, article: articleText() }),
   });
   const body = await r.json();
   if (!r.ok) throw new Error(body.error || 'understand failed');
   return body; // { type, say, needs?, supportAreas? }
 }
-
-const articleText = () => document.getElementById('article').innerText;
 
 async function act(action) {
   switch (action.type) {
@@ -116,6 +121,8 @@ async function act(action) {
     case 'adjust':
       await setNeeds(mergeNeeds(await currentNeeds(), action.needs, 'user'));
       break;
+    case 'answer':
+      break; // the answer is in `say`
     case 'read':
       stopSpeaking();
       ReadAloud.speak(articleText());

@@ -34,6 +34,9 @@ Then type (or press 🎤 and say) things like:
 | "I'm dyslexic" | support area `reading`; needs `dyslexiaFont`, `lineSpacing 1.8` |
 | "it's too bright in here" | need `darkTheme` → `darkMode` |
 | "read this to me" | the article is read aloud |
+| "what is this article about?" | answered from the article text |
+| "what does the last paragraph say?" | answered from the article text |
+| "does it mention Spotify?" | "The article doesn't say." |
 | "go back to how it was" | undo the last change |
 | "forget everything and start over" | profile cleared |
 | "tell me about dark matter" | nothing changes (it mentions dark, it doesn't ask for it) |
@@ -102,14 +105,21 @@ one fix; the app chooses which ones its surface needs.
 [`server.js`](server.js) holds the Gemini key and answers one question,
 `POST /api/understand`: *what does this sentence ask for?* The prompt offers
 the model the **need vocabulary** from step 2 (five dimensions, with their
-ranges) plus the current needs, and asks for one JSON action:
-`adjust`, `profile`, `read`, `stop`, `undo`, `reset` or `none`.
+ranges), the current needs, and the article text, and asks for one JSON
+action: `adjust`, `profile`, `answer`, `read`, `stop`, `undo`, `reset` or
+`none`.
 
 Two things make this reliable. The vocabulary is small and in the person's
 terms ("text 1.4× normal"), not CSS, so the model is accurate; and the server
 **validates** the answer — unknown dimensions dropped, numbers clamped to
 range — before the browser applies it through the toolkit, which validates
-again. The model never sees the article, only the sentence.
+again.
+
+The article goes in for one reason: a person who can't see the page needs
+"what is this about?", "what does the third paragraph say?", "does it
+mention dyslexia?" answered from the text. It is fenced in the prompt as
+content to answer from, never instructions to follow, and capped in length.
+An `answer` is spoken like any other reply.
 
 ### 5. Voice in, voice out
 
