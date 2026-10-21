@@ -124,12 +124,21 @@ async function act(action) {
     case 'answer':
       break; // the answer is in `say`
     case 'read':
-      stopSpeaking();
-      ReadAloud.speak(articleText());
-      return action.say; // don't talk over the reading
+      readFrom(action.from, { only: action.only });
+      return { say: action.say, speak: false }; // the live region gets it; TTS would cancel the reading
+    case 'pause':
+      if (!ReadAloud.speaking) return 'Nothing is being read.';
+      ReadAloud.pause();
+      return { say: action.say, speak: false }; // speaking it would cancel the paused reading
+    case 'resume':
+      if (!ReadAloud.paused) return 'Nothing is paused.';
+      ReadAloud.resume();
+      return { say: action.say, speak: false };
     case 'stop':
       stopSpeaking();
       break;
+    case 'help':
+      return HELP;
     case 'undo':
       if (history.length) await setNeeds(history.pop(), { remember: false });
       else return 'Nothing to undo.';
@@ -144,6 +153,59 @@ async function act(action) {
   return action.say;
 }
 
+// ── Reading aloud, a paragraph at a time ─────────────────────────────────────
+// A person who can't see the page navigates it by ear: "read the next
+// paragraph", "read from the third paragraph", "read that again". So the
+// article is read one block at a time (title, then each paragraph), with a
+// cursor, chaining to the next block when one ends unless asked for one only.
+// The block being read is marked for anyone who can see a little.
+const blocks = () => [...document.querySelectorAll('#article h1, #article p')].filter((el) => el.innerText.trim());
+let cursor = -1;      // index into blocks() of the block last read
+let reading = null;   // token for the current chain; a new chain or stop() invalidates it
+
+function markReading(i) {
+  blocks().forEach((el, j) => el.classList.toggle('reading', j === i));
+}
+
+function resolveFrom(from) {
+  const n = blocks().length;
+  if (typeof from === 'number') return Math.min(n - 1, from); // 1 = first paragraph; the title is 0
+  switch (from) {
+    case 'next': return Math.min(n - 1, cursor + 1);
+    case 'previous': return Math.max(0, cursor - 1);
+    case 'current': return Math.max(0, cursor);
+    case 'last': return n - 1;
+    default: return 0; // 'start', 'title'
+  }
+}
+
+function readFrom(from = 'start', { only = false } = {}) {
+  const els = blocks();
+  if (!els.length) return;
+  stopSpeaking();
+  const token = (reading = {});
+  const step = (k) => {
+    if (reading !== token) return;
+    if (k >= els.length) { reading = null; markReading(-1); return; }
+    cursor = k;
+    markReading(k);
+    ReadAloud.speak(els[k].innerText);
+    const u = ReadAloud.utterance;
+    if (!u) { reading = null; markReading(-1); return; }
+    u.onend = () => {
+      ReadAloud.speaking = false;
+      if (reading !== token) return;
+      if (only) { reading = null; markReading(-1); } else step(k + 1);
+    };
+  };
+  step(resolveFrom(from));
+}
+
+const HELP = 'This is an article you can read your way. Tell me what you need, by typing or by pressing Speak: '
+  + 'bigger text, more space between lines, dark mode, a dyslexia font, or describe yourself, like I have low vision. '
+  + 'Say read this to hear the article, read the next paragraph, read from the third paragraph, pause, or stop. '
+  + 'Ask about it: what is this article about, or what does the last paragraph say. Say undo, or start over.';
+
 // ── 5. Voice in, voice out ───────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 let busy = false;
@@ -154,8 +216,11 @@ async function handle(text) {
   busy = true;
   say('…', { speak: false });
   try {
-    const reply = await act(await understand(t));
-    say(reply || 'Done.');
+    // act() returns the reply, or { say, speak: false } when speaking it would
+    // cancel the reading it just started.
+    const r = await act(await understand(t));
+    const reply = (r && typeof r === 'object') ? r : { say: r, speak: true };
+    say(reply.say || 'Done.', { speak: reply.speak });
   } catch (e) {
     say('Sorry — ' + e.message);
   } finally {
@@ -166,12 +231,14 @@ async function handle(text) {
 function say(text, { speak = true } = {}) {
   $('reply').textContent = text;           // the live region announces it
   if (speak && $('tts').checked && 'speechSynthesis' in window) {
-    speechSynthesis.cancel();
+    stopSpeaking();                        // a spoken reply ends any reading in progress
     speechSynthesis.speak(new SpeechSynthesisUtterance(text));
   }
 }
 
 function stopSpeaking() {
+  reading = null;
+  markReading(-1);
   ReadAloud.stop();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
@@ -206,5 +273,10 @@ if (!Recognition) {
 }
 
 // Boot: whatever the profile already holds is applied before the first word.
+// Then say what this page can do — in the live region, so a screen reader
+// reads it, and aloud where the browser lets a page speak before any click —
+// and put the keyboard in the input.
 await render();
-window.reader = { librarian, handle, currentNeeds }; // for poking at it in the console
+say(HELP);
+$('text').focus();
+window.reader = { librarian, handle, currentNeeds, readFrom, get cursor() { return cursor; } }; // for poking at it in the console

@@ -33,7 +33,10 @@ Then type (or press 🎤 and say) things like:
 | "bigger" | relative to the current need → `textSize 1.44` |
 | "I'm dyslexic" | support area `reading`; needs `dyslexiaFont`, `lineSpacing 1.8` |
 | "it's too bright in here" | need `darkTheme` → `darkMode` |
-| "read this to me" | the article is read aloud |
+| "read this to me" | the article is read aloud, a paragraph at a time |
+| "read the next paragraph" / "read from the third paragraph" / "read that again" | reading moves by paragraph |
+| "pause" / "continue" / "stop" | reading aloud is paused, resumed, stopped |
+| "what can I do here?" | the page says what it can do (it also says this when it opens) |
 | "what is this article about?" | answered from the article text |
 | "what does the last paragraph say?" | answered from the article text |
 | "does it mention Spotify?" | "The article doesn't say." |
@@ -127,8 +130,14 @@ The Web Speech API, where the browser has it: `SpeechRecognition` dictates
 into the same text field (starting the mic first silences playback so it
 doesn't transcribe the page reading itself); replies land in an ARIA live
 region (so a screen reader announces them) and are spoken with
-`speechSynthesis` when "Speak replies" is on. "Read this" uses the
-`ReadAloud` adapter on the article text.
+`speechSynthesis` when "Speak replies" is on.
+
+"Read this" uses the `ReadAloud` adapter, one block at a time (the title,
+then each paragraph) with a cursor, so a person who can't see the page can
+move through it by ear: "read the next paragraph", "read from the third
+paragraph", "read that again", "pause", "continue". The block being read is
+marked for anyone who can see a little. When the page opens it says what it
+can do, in the live region and aloud, and puts the keyboard in the input.
 
 ## Layout
 

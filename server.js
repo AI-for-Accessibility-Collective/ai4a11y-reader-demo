@@ -73,8 +73,11 @@ Actions:
 {"type":"profile","supportAreas":["reading"],"needs":[{"dimension":"dyslexiaFont","value":true},{"dimension":"lineSpacing","value":1.8}],"say":"..."}
   — the person described themselves ("I'm dyslexic", "I have low vision", "I'm 80 and my eyes are tired"): record support areas (from: ${SUPPORT_AREAS.join(', ')}) and the needs that usually follow.
 {"type":"answer","say":"..."} — the person asked about the article (a question, "what is this about", "summarize it", "what does the last paragraph say", "does it mention ..."): answer from the article text only, in two to four plain sentences — or the length the person asked for ("in one sentence"). If the article doesn't say, say so.
-{"type":"read","say":"Reading the article"} — read the article aloud.
+{"type":"read","from":"start","only":false,"say":"Reading the article"} — read aloud, from a place: "from" is "start", "title", "next", "previous", "current", "last", or a paragraph number (1 = the first paragraph after the title); "only": true reads just that paragraph, false reads on to the end. "read this" = from start. "read the next paragraph" = from next, only true. "read from the third paragraph" = from 3. "read that again" = from current, only true. "read the last paragraph" = from last, only true.
+{"type":"pause","say":"Paused"} — pause reading aloud.
+{"type":"resume","say":"Continuing"} — continue reading aloud after a pause.
 {"type":"stop","say":"Stopped"} — stop reading aloud.
+{"type":"help","say":""} — the person asks what they can do here or how this works; the app answers itself.
 {"type":"undo","say":"Undone"} — undo the last change.
 {"type":"reset","say":"Back to normal"} — forget the profile and every change.
 {"type":"none","say":"..."} — nothing above fits: "say" is a short plain answer (one or two sentences), or what the app can do.
@@ -108,8 +111,14 @@ async function gemini(text, current, article) {
 // Never trust the model's JSON as-is: keep only known types, known dimensions,
 // values in range. The browser validates again through the toolkit's registry.
 function validate(obj) {
-  const type = ['adjust', 'profile', 'answer', 'read', 'stop', 'undo', 'reset', 'none'].includes(obj?.type) ? obj.type : 'none';
+  const type = ['adjust', 'profile', 'answer', 'read', 'pause', 'resume', 'stop', 'undo', 'reset', 'help', 'none'].includes(obj?.type) ? obj.type : 'none';
   const out = { type, say: String(obj?.say || '').slice(0, type === 'answer' ? 1200 : 300) };
+  if (type === 'read') {
+    const f = obj.from;
+    out.from = ['start', 'title', 'next', 'previous', 'current', 'last'].includes(f) ? f
+      : (Number.isInteger(Number(f)) && Number(f) >= 1 && Number(f) <= 500) ? Number(f) : 'start';
+    out.only = obj.only === true || obj.only === 'true';
+  }
   if (type === 'adjust' || type === 'profile') {
     out.needs = [];
     for (const n of Array.isArray(obj.needs) ? obj.needs : []) {
