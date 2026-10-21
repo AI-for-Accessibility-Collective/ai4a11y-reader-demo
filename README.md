@@ -1,20 +1,20 @@
-# Reader — the smallest complete host of the AI for Accessibility Toolkit
+# Reader: learn the AI for Accessibility Toolkit in ten minutes
 
-A one-page reading app that adapts itself to the person. You tell it what
-you need, in your own words, by typing or speaking — "bigger text", "I'm
-dyslexic", "it's too bright", "read this" — and the page changes. It
-remembers next time.
+This is a one-page reading app that adapts itself to the person reading it.
+You tell it what you need, in your own words: "bigger text", "I'm dyslexic",
+"it's too bright", "read the next paragraph", "what is this article about?"
+The page changes, and it remembers you next time.
 
-It exists to show, in about 200 lines, how an app uses the
-[AI for Accessibility Toolkit](https://github.com/AI-for-Accessibility-Collective/AI-for-Accessibility-Toolkit):
-the toolkit keeps a **profile of the person's needs**; the app renders that
-profile into **settings for its own surface** and applies them with the
-toolkit's **catalog of adapters**. The app never stores a font size.
+It is also the smallest complete example of an app built on the
+[AI for Accessibility Toolkit](https://github.com/AI-for-Accessibility-Collective/AI-for-Accessibility-Toolkit).
+This README is a tutorial: read it top to bottom with
+[`public/app.js`](public/app.js) open beside it, and you will know how to use
+the toolkit in your own app.
 
-> Status: a demo of a pre-alpha research toolkit. The adapters are not
-> validated and this is not a replacement for assistive technology.
+> The toolkit is a pre-alpha research project. Its adapters are not
+> validated, and nothing here replaces assistive technology.
 
-## Run it
+## Run it first
 
 You need Node 20.12+ and a Gemini API key
 ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)).
@@ -22,62 +22,74 @@ You need Node 20.12+ and a Gemini API key
 ```bash
 npm install
 cp .env.example .env     # put GEMINI_API_KEY=... in it
-npm start                # http://127.0.0.1:5173/
+npm start                # open http://127.0.0.1:5173/
 ```
 
-Then type (or press 🎤 and say) things like:
+Type "make the text bigger", then "I'm dyslexic", then reload the page. It
+comes back adapted. Keep it open; the steps below ask you to try things in
+the browser console.
 
-| You say | What happens |
-|---|---|
-| "could you make the text a bit bigger" | need `textSize 1.2` → `fontScale 120` |
-| "bigger" | relative to the current need → `textSize 1.44` |
-| "I'm dyslexic" | support area `reading`; needs `dyslexiaFont`, `lineSpacing 1.8` |
-| "it's too bright in here" | need `darkTheme` → `darkMode` |
-| "read this to me" | the article is read aloud, a paragraph at a time |
-| "read the next paragraph" / "read from the third paragraph" / "read that again" | reading moves by paragraph |
-| "pause" / "continue" / "stop" | reading aloud is paused, resumed, stopped |
-| "what can I do here?" | the page says what it can do (it also says this when it opens) |
-| "what is this article about?" | answered from the article text |
-| "what does the last paragraph say?" | answered from the article text |
-| "does it mention Spotify?" | "The article doesn't say." |
-| "go back to how it was" | undo the last change |
-| "forget everything and start over" | profile cleared |
-| "tell me about dark matter" | nothing changes (it mentions dark, it doesn't ask for it) |
+## The idea in one sentence
 
-Reload the page: it comes back adapted, because the profile lives in the
-browser's storage through the toolkit.
+**The toolkit keeps a profile of what a person *needs*; your app renders that
+profile into settings for its own surface and applies them with adapters.**
 
-## How it is built — the tutorial
+```
+  "bigger text"            profile                 settings                 the page
+  "I'm dyslexic"   ──▶   needs[]           ──▶   { fontScale: 120,   ──▶   adapters
+  (what they say)        textSize 1.2            dyslexiaFont: true }      change the DOM
+                         dyslexiaFont true
+                     Librarian (toolkit)     renderWebSettings (toolkit)   catalog (toolkit)
+```
 
-The whole app is [`public/app.js`](public/app.js), written top to bottom in
-the order a host uses the toolkit. Read it alongside this.
+Three things to know, and the three steps that follow teach one each:
 
-### 1. Create the toolkit over your ports
+- **The profile holds needs, not settings.** A need is device-independent:
+  "text 1.2× normal", not `font-size: 21px`. The same profile renders on the
+  web, a phone, or a headset. Your app never stores a font size.
+- **The Librarian is the one object you talk to.** It is the only thing that
+  writes the profile. You read the profile back as an **AbilityModel**.
+- **Adapters are the catalog of fixes.** Each one makes one setting true on a
+  page: `VisualAssist` scales text, `DarkMode` darkens, `ReadAloud` speaks.
+  You pick the ones your surface needs.
 
-The toolkit core is plain JavaScript with no platform code in it. It reaches
-storage, the clock and the scheduler only through **ports** the host hands
-it. This app implements one, [`public/ports/local-storage-kv.js`](public/ports/local-storage-kv.js):
-three async methods over `localStorage`. The clock and scheduler are the
-toolkit's reference implementations (they use nothing but `Date.now` and
-`setTimeout`, so they run in a browser). Consent is the no-op, because this
-app never proposes a profile change on its own.
+## Step 1: create the toolkit over your ports (2 minutes)
+
+The toolkit core is plain JavaScript with no platform code in it. It never
+touches storage, the clock, or the DOM directly; it reaches them through
+**ports** you hand it. That is why it runs unchanged in a browser, in Node,
+or in a native shell.
 
 ```js
+import { createToolkit } from '/vendor/toolkit/index.js';
+import { nodeClock, nodeScheduler } from '/vendor/toolkit/platforms/node/ports.js';
+import { noopConsent } from '/vendor/toolkit/ports/index.js';
+import { localStorageKV } from './ports/local-storage-kv.js';
+
 const { datastore, librarian } = createToolkit({
-  kv: localStorageKV(), clock: nodeClock(), scheduler: nodeScheduler(), consent: noopConsent,
+  kv: localStorageKV(),       // the one port this app writes
+  clock: nodeClock(),         // the toolkit's reference clock (Date.now)
+  scheduler: nodeScheduler(), // the toolkit's reference scheduler (setTimeout)
+  consent: noopConsent,       // this app never proposes changes on its own
 });
 await datastore.runMigrations();
 ```
 
-The **Librarian** is the one object you talk to. It is the only writer to the
-person's profile.
+The only port this app implements is storage,
+[`public/ports/local-storage-kv.js`](public/ports/local-storage-kv.js): three
+async methods (`get`, `set`, `getAll`) over `localStorage`, 29 lines. That is
+the whole contract. A Chrome extension maps the same three methods to
+`chrome.storage`; a phone app maps them to its own store.
 
-### 2. Keep needs, not settings
+**Try it.** In the console, `reader.librarian` is the Librarian. Run
+`await reader.librarian.getAbilityModel()` and look at the shape: that is the
+profile you will be writing to.
 
-The profile holds **needs**: device-independent magnitudes like
-`{ dimension: 'textSize', value: 1.4 }` or `{ dimension: 'darkTheme', value: true }`.
-A need says what the person needs; it says nothing about CSS, fonts or
-pixels, so the same profile renders on the web, on a phone, or in a headset.
+## Step 2: write a need into the profile (3 minutes)
+
+A need is `{ dimension, value, strength, source }`. The dimensions are a small
+shared vocabulary (`textSize`, `lineSpacing`, `darkTheme`, `dyslexiaFont`,
+`readAloudRate`, and more); the value is a magnitude in the person's terms.
 
 ```js
 await librarian.setProfileField('fields.needs', [
@@ -85,99 +97,127 @@ await librarian.setProfileField('fields.needs', [
 ]);
 ```
 
-`app.js` keeps the whole list and rewrites it on every change (`mergeNeeds`),
-and keeps the previous lists on a stack for undo.
+That one call is all the app does to change what the person gets. It
+replaces the whole list, so the app keeps the list and merges each change
+into it (`mergeNeeds` in `app.js`), and pushes the previous list on a stack
+so "undo" is one pop.
 
-### 3. Render the profile, apply it with the catalog
-
-`renderWebSettings(model)` is a pure function from the profile's
-**AbilityModel** to the web settings vocabulary:
+**Try it.** In the console:
 
 ```js
+await reader.librarian.setProfileField('fields.needs', [
+  { dimension: 'darkTheme', value: true, strength: 'preference', source: 'console' },
+]);
+location.reload();
+```
+
+The page comes back dark. Nothing in the app said "dark"; the profile did,
+and the next step rendered it.
+
+## Step 3: render the profile and apply it with adapters (3 minutes)
+
+`renderWebSettings` is a pure function from the AbilityModel to the **web
+settings vocabulary**, the names the catalog's adapters understand:
+
+```js
+import { renderWebSettings } from '/vendor/toolkit/surfaces/web.js';
+
 const model = await librarian.getAbilityModel();   // { supportAreas, needs, ... }
 const web   = renderWebSettings(model);            // { fontScale: 140, darkMode: true, ... }
 ```
 
-The settings are made true on the page by **adapters** from `@ai4a11y/tools`:
-`VisualAssist` (font scale, line height, dyslexia font), `DarkMode`,
-`ReadAloud`. That is `applyWebSettings()` — a dozen lines. Each adapter is
-one fix; the app chooses which ones its surface needs.
+`textSize 1.4` became `fontScale: 140`; `darkTheme: true` became
+`darkMode: true`. There is a renderer per surface (`surfaces/web.js`,
+`surfaces/xr.js`); your app calls the one for its platform.
 
-### 4. Understand what the person said
+Then the adapters make those settings true on the page. This is the entire
+apply step of the app:
 
-[`server.js`](server.js) holds the Gemini key and answers one question,
-`POST /api/understand`: *what does this sentence ask for?* The prompt offers
-the model the **need vocabulary** from step 2 (five dimensions, with their
-ranges), the current needs, and the article text, and asks for one JSON
-action: `adjust`, `profile`, `answer`, `read`, `stop`, `undo`, `reset` or
-`none`.
+```js
+import { VisualAssist } from '/vendor/tools/adapters/visual-assist.js';
+import { DarkMode } from '/vendor/tools/adapters/dark-mode.js';
+import { ReadAloud } from '/vendor/tools/adapters/read-aloud.js';
 
-Two things make this reliable. The vocabulary is small and in the person's
-terms ("text 1.4× normal"), not CSS, so the model is accurate; and the server
-**validates** the answer — unknown dimensions dropped, numbers clamped to
-range — before the browser applies it through the toolkit, which validates
-again.
-
-The article goes in for one reason: a person who can't see the page needs
-"what is this about?", "what does the third paragraph say?", "does it
-mention dyslexia?" answered from the text. It is fenced in the prompt as
-content to answer from, never instructions to follow, and capped in length.
-An `answer` is spoken like any other reply.
-
-### 5. Voice in, voice out
-
-The Web Speech API, where the browser has it: `SpeechRecognition` dictates
-into the same text field (starting the mic first silences playback so it
-doesn't transcribe the page reading itself); replies land in an ARIA live
-region (so a screen reader announces them) and are spoken with
-`speechSynthesis` when "Speak replies" is on.
-
-"Read this" uses the `ReadAloud` adapter, one block at a time (the title,
-then each paragraph) with a cursor, so a person who can't see the page can
-move through it by ear: "read the next paragraph", "read from the third
-paragraph", "read that again", "pause", "continue". The block being read is
-marked for anyone who can see a little. When the page opens it says what it
-can do, in the live region and aloud, and puts the keyboard in the input.
-
-## Layout
-
-```
-server.js                     the key, /api/understand, static files   (zero dependencies)
-public/index.html             the article and the one input
-public/app.js                 the app: steps 1–5 above
-public/ports/local-storage-kv.js   the one port this host implements
-vendor/*.tgz                  the two toolkit packages, packed (not on npm yet)
-scripts/vendor.sh             re-pack them from a toolkit checkout
+function applyWebSettings(web) {
+  VisualAssist.enable({
+    fontScale: web.fontScale ?? 100,
+    lineHeight: web.lineHeight ?? 1.5,
+    dyslexiaFont: !!web.dyslexiaFont,
+  });
+  if (web.darkMode) DarkMode.enable();
+  else if (DarkMode.enabled) DarkMode.disable();
+  ReadAloud.setRate(web.speechRate ?? 1.0);
+}
 ```
 
-## Updating the toolkit
+Most adapters have the same shape, `enable(options)` and `disable()`, and
+each reverses what it did. The catalog has about fifty (reading ruler, bionic
+reading, focus highlighting, captions, landmarks, ...). You do not write
+fixes; you choose which ones your surface needs and feed them settings.
 
-The packages are not on npm yet, so they are vendored as tarballs
-(`npm pack` from the toolkit repository, see its
-`docs/using-in-your-project.md`). With a checkout of the toolkit next to this
-folder:
+`render()` in `app.js` is just those two calls in a row, and it runs once at
+boot, so whatever the profile already holds is applied before the first word.
 
-```bash
-npm run vendor     # or TOOLKIT_DIR=/path/to/toolkit npm run vendor
+**That is the whole toolkit loop**: write a need, read the model, render it,
+apply it. Everything that follows is this app's own user interface.
+
+## Step 4: let people say it in their own words (1 minute)
+
+Needs have to come from somewhere. This app asks a model. [`server.js`](server.js)
+holds the Gemini key and answers one question, `POST /api/understand`: *what
+does this sentence ask for?* The prompt offers the model the five need
+dimensions above, the current needs, and the article text, and asks for one
+JSON action: `adjust`, `profile` ("I'm dyslexic" → support areas and the
+needs that usually follow), `answer` (a question about the article),
+`read`, `pause`, `resume`, `stop`, `undo`, `reset`, `help`, or `none`.
+
+Two things make it reliable. The vocabulary is small and in the person's
+terms, so the model is accurate. And the server validates the answer
+(unknown dimensions dropped, numbers clamped to range) before the browser
+writes it through the Librarian. The article goes in fenced as content to
+answer from, never instructions to follow.
+
+You could replace this step with a settings panel, a form, or the toolkit's
+own Controller (a grammar plus an optional model, with a remote protocol for
+driving other apps). The profile and the adapters would not change.
+
+## Step 5: voice in, voice out (1 minute)
+
+Dictation is the Web Speech API's `SpeechRecognition` into the same text
+field; replies land in an ARIA live region (so a screen reader announces
+them) and are spoken with `speechSynthesis` when "Speak replies" is on. "Read
+this" uses the `ReadAloud` adapter one paragraph at a time with a cursor, so
+someone who can't see the page can move through it by ear: "read the next
+paragraph", "read from the third paragraph", "pause", "continue". When the
+page opens it says what it can do.
+
+## Where things are
+
+```
+public/app.js                      the app: steps 1–5, in that order, under 300 lines
+public/ports/local-storage-kv.js   the one port this app implements
+public/index.html                  the article and the one input
+server.js                          the Gemini key and /api/understand; serves the page (zero dependencies)
+vendor/*.tgz                       @ai4a11y/toolkit and @ai4a11y/tools, packed (not on npm yet)
+scripts/vendor.sh                  re-pack them from a toolkit checkout; vendor/PIN.txt records the commit
 ```
 
-`vendor/PIN.txt` records the toolkit commit the tarballs came from.
+## Do it in your own app
+
+1. Pack the two packages from a toolkit checkout (`npm run vendor` here shows
+   how) and depend on them by path, as [`package.json`](package.json) does.
+2. Implement `KVStore` for your platform; borrow the clock and scheduler.
+3. `createToolkit(...)`, then `setProfileField('fields.needs', ...)` from
+   wherever your needs come from.
+4. `renderWebSettings(await librarian.getAbilityModel())`, and feed the
+   result to the adapters your surface uses.
+
+Next reads: the toolkit's [QUICKSTART](https://github.com/AI-for-Accessibility-Collective/AI-for-Accessibility-Toolkit/blob/main/docs/QUICKSTART.md),
+its [API](https://github.com/AI-for-Accessibility-Collective/AI-for-Accessibility-Toolkit/blob/main/toolkit/API.md),
+and [using it in your project](https://github.com/AI-for-Accessibility-Collective/AI-for-Accessibility-Toolkit/blob/main/docs/using-in-your-project.md).
 
 ## About
 
 A project of the [AI for Accessibility Collective](https://github.com/AI-for-Accessibility-Collective),
 licensed under [Apache 2.0](LICENSE) like the toolkit itself. Contributions
 follow the [code of conduct](CODE_OF_CONDUCT.md).
-
-## What to try next
-
-- Add a need: give the model `letterSpacing` in `server.js`'s `DIMENSIONS`,
-  and nothing else changes — `renderWebSettings` already maps it and
-  `VisualAssist` already applies it.
-- Add an adapter: `ReadingRuler` from the catalog, for a `readingGuide` need.
-- Swap the port: write a `KVStore` over `fetch` to your own backend, and the
-  profile roams.
-- Replace the understanding step with the toolkit's Controller
-  (`controller/` in the toolkit repository), which adds a deterministic
-  grammar, an LLM lane, confirmation flows and a remote `ControlPort` for
-  driving other apps.
